@@ -1,6 +1,4 @@
 #include "sim.h"
-#include <SDL2/SDL_render.h>
-#include <stdlib.h>
 #include <math.h>
 
 int main(){
@@ -18,17 +16,16 @@ int main(){
     SDL_Event event;
     while (running){
 
-        render_circles();
-
         while (SDL_PollEvent(&event)){
             switch (event.type){
-                case (SDL_QUIT): running = 0;
-                case (SDL_MOUSEBUTTONDOWN) : handle_click(&event.button);
+                case (SDL_QUIT): running = 0; break;
+                case (SDL_MOUSEBUTTONDOWN) : handle_click(&event.button); break;
             }
         }
-
+        
         update_circles();
-        SDL_Delay(100);
+        render_circles();
+        SDL_Delay(30);
     }
 
     SDL_DestroyRenderer(renderer);
@@ -36,21 +33,25 @@ int main(){
 }
 
 void new_circle(int x, int y, int radius){
-   
-    Circle *newCircle = malloc(sizeof(Circle));
+        
+    if (circleCount >= MAX_CIRCLES){
+        return;
+    }
 
-    newCircle->x = x;
-    newCircle->y = y;
-    newCircle->radius = radius;
-    newCircle->velocity.x = 0;
-    newCircle->velocity.y = 0;
+    circles[circleCount].x = x;
+    circles[circleCount].y = y;
+    circles[circleCount].radius = radius;
+    circles[circleCount].velocity.x = rand() % 2 ? (rand() % 11) : -(rand() % 11);
+    circles[circleCount].velocity.y = GRAVITY;
 
-    circles[circleCount] = *newCircle;
+    printf("New X: %d Y: %d VX: %f VY: %f\n", circles[circleCount].x, circles[circleCount].y, circles[circleCount].velocity.x, circles[circleCount].velocity.y);
     circleCount++;
 }
 
 void draw_circle(Circle *circle){
     
+    SDL_SetRenderDrawColor(renderer, COLOUR_WHITE);
+
     int lowerX = circle->x - circle->radius;
     int lowerY = circle->y - circle->radius;
     int upperX = circle->x + circle->radius;
@@ -60,16 +61,58 @@ void draw_circle(Circle *circle){
     for (int x = lowerX; x < upperX; x++){
         for (int y = lowerY; y < upperY; y++){
             int distanceSquared = ((x - circle->x) * (x - circle->x)) + ((y - circle->y) * (y - circle->y));
-            if ((x * x) + (y * y) < radiusSquared){
-                SDL_Rect rect = {x, y, 1, 1};
-                SDL_RenderFillRect(renderer, &rect);
+            if (distanceSquared < radiusSquared){
+                SDL_RenderDrawPoint(renderer, x, y);
             }
         }
     }
 }
 
-void update_circles(){
 
+void handle_collision(Circle *a, Circle *b){
+    double dx = b->x - a->x;
+    double dy = b->y - a->y;
+
+    double distance = sqrt(pow(dx, 2) + pow(dy, 2));
+
+    if (distance < a->radius + b->radius){
+
+        a->velocity.x *= -1;
+        a->velocity.y *= -1;
+        b->velocity.x *= -1;
+        b->velocity.y *= -1;
+    }
+}
+
+void update_circles(){
+    for (int i = 0; i < circleCount; i++){
+
+        circles[i].x += circles[i].velocity.x;
+        circles[i].y += circles[i].velocity.y;
+
+        if (circles[i].x - circles[i].radius < 0){
+            circles[i].velocity.x *= -1;
+            circles[i].x = circles[i].radius;
+        }
+        else if (circles[i].x + circles[i].radius > WINDOW_WIDTH){
+            circles[i].velocity.x *= -1;
+            circles[i].x = WINDOW_WIDTH - circles[i].radius;
+        }
+
+
+        if (circles[i].y - circles[i].radius < 0){
+            circles[i].velocity.y *= -1;
+            circles[i].y = circles[i].radius;
+        }
+        else if (circles[i].y + circles[i].radius > WINDOW_HEIGHT){
+            circles[i].velocity.y *= -1;
+            circles[i].y = WINDOW_HEIGHT - circles[i].radius;
+        }
+
+        for (int j = 0; j < circleCount; j++){
+            handle_collision(&circles[i], &circles[j]);
+        }
+    }
 }
 
 void render_circles(){
@@ -77,10 +120,8 @@ void render_circles(){
     SDL_SetRenderDrawColor(renderer, COLOUR_BLACK);
     SDL_RenderClear(renderer);
 
-    SDL_SetRenderDrawColor(renderer, COLOUR_WHITE);
-
     for (int i = 0; i < circleCount; i++){
-        draw_circle(&circles[circleCount-1]);
+        draw_circle(&circles[i]);
     }
 
     SDL_RenderPresent(renderer);
