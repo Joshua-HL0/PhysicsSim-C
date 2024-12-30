@@ -38,6 +38,14 @@ void new_circle(int x, int y, int radius){
         return;
     }
 
+    Circle newCircle = {{0, 0}, x, y ,radius};
+
+    for (int i = 0; i < circleCount; i++){
+        if (check_collision(&newCircle, &circles[i])){
+            return;
+        }
+    }
+
     circles[circleCount].x = x;
     circles[circleCount].y = y;
     circles[circleCount].radius = radius;
@@ -68,14 +76,29 @@ void draw_circle(Circle *circle){
     }
 }
 
-
-void handle_collision(Circle *a, Circle *b){
-    double dx = b->x - a->x;
-    double dy = b->y - a->y;
+bool check_collision(Circle *a, Circle *b){
+    double dx = a->x - b->x;
+    double dy = a->y - b->y;
 
     double distance = sqrt(pow(dx, 2) + pow(dy, 2));
 
     if (distance < a->radius + b->radius){
+        return true;
+    }
+    return false;
+}
+
+void handle_collision(Circle *a, Circle *b){
+    
+    double nextAX = a->x + a->velocity.x;
+    double nextAY = a->y + a->velocity.y;
+    double nextBX = b->x + b->velocity.x;
+    double nextBY = b->y + b->velocity.y;
+
+    Circle newA = {{0,0}, nextAX, nextAY, a->radius};
+    Circle newB = {{0,0}, nextBX, nextBY, b->radius};
+
+    if (check_collision(&newA, &newB)){
 
         a->velocity.x *= -1;
         a->velocity.y *= -1;
@@ -86,6 +109,10 @@ void handle_collision(Circle *a, Circle *b){
 
 void update_circles(){
     for (int i = 0; i < circleCount; i++){
+
+        for (int j = i+1; j < circleCount; j++){
+            handle_collision(&circles[i], &circles[j]);
+        }
 
         circles[i].x += circles[i].velocity.x;
         circles[i].y += circles[i].velocity.y;
@@ -109,9 +136,6 @@ void update_circles(){
             circles[i].y = WINDOW_HEIGHT - circles[i].radius;
         }
 
-        for (int j = 0; j < circleCount; j++){
-            handle_collision(&circles[i], &circles[j]);
-        }
     }
 }
 
